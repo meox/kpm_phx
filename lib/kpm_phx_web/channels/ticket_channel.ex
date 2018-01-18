@@ -31,7 +31,7 @@ defmodule HelloWeb.TicketChannel do
             "./data/tickets_3219.csv",
             fn line ->
               tks = FakeTicket.convert(line, mapping)
-              push socket, "ticket", %{ data: tks }
+              push socket, "ticket", %{ data: tks, tkt_type: 3219 }
           end)
       end)
 
