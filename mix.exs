@@ -4,8 +4,8 @@ defmodule KpmPhx.Mixfile do
   def project do
     [
       app: :kpm_phx,
-      version: "0.0.1",
-      elixir: "~> 1.4",
+      version: "0.0.2",
+      elixir: "~> 1.6",
       elixirc_paths: elixirc_paths(Mix.env),
       compilers: [:phoenix, :gettext] ++ Mix.compilers,
       start_permanent: Mix.env == :prod,
@@ -40,6 +40,8 @@ defmodule KpmPhx.Mixfile do
       {:cowboy, "~> 1.0"},
       {:corsica, "~> 1.0"},
       {:poison, "~> 3.1"},
+      {:chumak, "~> 1.2.0"},
+      {:ok, "~> 1.9"},
     ]
   end
 end

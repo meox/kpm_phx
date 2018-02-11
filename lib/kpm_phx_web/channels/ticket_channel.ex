@@ -22,6 +22,11 @@ defmodule HelloWeb.TicketChannel do
     {:reply, {:ok, %{ data: mapping }}, socket}
   end
 
+  def handle_in("cem_fastsearch", req, socket) do
+    mapping = FakeTicket.load_mapper("./data/types_3219.json")
+    {:reply, {:ok, %{ data: mapping }}, socket}
+  end
+
   defp handle_quidmaster(socket, quid_master, batch_size \\ 1) do
     Logger.info("request quid_master: #{quid_master}, batch_size: #{batch_size}")
     mapping = FakeTicket.load_mapper("./data/types_3219.json")

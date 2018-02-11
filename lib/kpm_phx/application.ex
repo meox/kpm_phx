@@ -12,6 +12,7 @@ defmodule KpmPhx.Application do
       supervisor(KpmPhxWeb.Endpoint, []),
       # Start your own worker by calling: KpmPhx.Worker.start_link(arg1, arg2, arg3)
       # worker(KpmPhx.Worker, [arg1, arg2, arg3]),
+      worker(CEM.GenTicket, [ %CEM.TicketState{} ])
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html
