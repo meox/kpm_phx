@@ -5,11 +5,11 @@ defmodule CEM.GenTicket do
   alias CEM.{TTReq, TicketState}
 
   def start_link(state = %TicketState{}) do
-    GenServer.start_link(__MODULE__, state)
+    GenServer.start_link(__MODULE__, state, name: :cem_gen_ticket)
   end
 
-  def fast_search(pid, msg \\ TTReq.sample_request()) do
-    GenServer.call(pid, {:fast_search, msg})
+  def fast_search(msg, phx_callback) do
+    GenServer.call(:cem_gen_ticket, {:fast_search, msg, phx_callback})
   end
 
   def init(state = %TicketState{}) do
@@ -20,27 +20,31 @@ defmodule CEM.GenTicket do
 
   # Callbacks
 
-  def handle_call({:fast_search, msg}, _from, state) do
+  def handle_call({:fast_search, msg, phx_callback}, _from, state) do
     {_, reply} = OK.for do
       chumak_pid <- ticket2zmq_connect(state)
       response <- TTReq.send_fastsearch(state.socket, msg)
     after
-      process_fast_search(chumak_pid, response, state)
+      process_fast_search(chumak_pid, response, state, phx_callback)
     end
 
     reply
   end
 
-  def handle_info({:take_ticket, job_id}, state) do
+  def handle_info({:take_ticket, job_id, phx_callback}, state) do
     case TTReq.take_tickets(state.socket, job_id) do
       {:ok, tickets, false} ->
         # we have other tickets to take
+        phx_callback.(job_id, tickets)
         Process.send_after(self(), {:take_ticket, job_id}, 1000)
-        {:noreply, %{ state | job_map: update_ticket(state, job_id, tickets) }}
+        {:noreply, state}
 
       {:ok, tickets, true} ->
         # no more tickets
-        {:noreply, %{ state | job_map: update_ticket(state, job_id, tickets) }}
+        phx_callback.(job_id, tickets)
+
+        #todo: remove schema
+        {:noreply, state}
 
       {:error, error_msg} ->
         IO.puts("Error: #{error_msg}")
@@ -51,12 +55,6 @@ defmodule CEM.GenTicket do
 
   #### INTERNAL #####
 
-  defp update_ticket(state, job_id, tickets) do
-    job = state.job_map |> Map.get(job_id)
-    state.job_map
-    |> Map.put(job_id, %{schema: job.schema, tickets: List.flatten([job.ticket | tickets])})
-  end
-
   defp ticket2zmq_connect(state = %TicketState{chumak_pid: nil}) do
     :chumak.connect(state.socket, :tcp, state.ip |> to_charlist, state.port)
   end
@@ -65,20 +63,17 @@ defmodule CEM.GenTicket do
     {:ok, state.chumak_pid}
   end
 
-
-  defp process_fast_search(chumak_pid, response, state) do
+  defp process_fast_search(chumak_pid, response, state, phx_callback) do
     case response do
       %{"error" => false, "job_id" => job_id, "schema" => schema} ->
-        new_job_map = Map.put(state.job_map, job_id, %{schema: schema, tickets: []})
-        state = %{ state | chumak_pid: chumak_pid, job_map: new_job_map }
-        Process.send_after(self(), {:take_ticket, job_id}, 1000)
-        {:reply, {:ok, job_id}, state}
+        Process.send_after(self(), {:take_ticket, job_id, phx_callback}, 1000)
+        {:reply, {:ok, job_id, schema}, %{ state | chumak_pid: chumak_pid }}
   
       %{"error" => true, "value" => value} ->
-        {:reply, {:error, value}, state}
+        {:reply, {:error, value}, %{ state | chumak_pid: chumak_pid }}
   
       _ ->
-        {:reply, {:error, "generic error"}, state}
+        {:reply, {:error, "generic error"}, %{ state | chumak_pid: chumak_pid }}
     end
   end
 
