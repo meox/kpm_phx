@@ -36,7 +36,7 @@ defmodule CEM.GenTicket do
       {:ok, tickets, false} ->
         # we have other tickets to take
         phx_callback.(job_id, tickets)
-        Process.send_after(self(), {:take_ticket, job_id}, 1000)
+        Process.send_after(self(), {:take_ticket, job_id, phx_callback}, 1000)
         {:noreply, state}
 
       {:ok, tickets, true} ->
